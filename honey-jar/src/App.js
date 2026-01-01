@@ -307,7 +307,7 @@ export default function HoneyJarApp() {
             textShadow: '1px 1px 2px rgba(0,0,0,0.2)',
             fontWeight: '500'
           }}>
-            Your Daily Gratitude & Memory Keeper
+            Your Daily Memory Keeper
           </p>
         </header>
 
@@ -505,12 +505,14 @@ function AnimatedJar({ count, size = 'medium', onClick, isToday }) {
         } else {
           clearInterval(interval);
           setIsAnimating(false);
-          // Keep currentFrame at the last frame of the animation
           previousCount.current = newCount;
         }
-      }, 500); // 500ms per frame = half a second
+      }, 200); // 50ms per frame for smoother, faster animation
 
       return () => clearInterval(interval);
+    } else {
+      // If no animation needed, still update previousCount
+      previousCount.current = newCount;
     }
   }, [count]);
 
