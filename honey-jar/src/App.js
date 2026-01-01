@@ -13,6 +13,8 @@ export default function HoneyJarApp() {
   const [dayRecap, setDayRecap] = useState(null);
   const [isGeneratingRecap, setIsGeneratingRecap] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [expandedEntry, setExpandedEntry] = useState(null); // Track which entry is expanded
+  const [editingEntry, setEditingEntry] = useState(null); // Track which entry is being edited
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
 
@@ -33,26 +35,49 @@ export default function HoneyJarApp() {
 
   const handleAddEntry = () => {
     if (currentEntry.content.trim() || currentEntry.photo || currentEntry.audio) {
-      // Use selectedDate if provided, otherwise use today
-      const targetDate = selectedDate || new Date().toLocaleDateString();
-      const targetDateObj = selectedDate ? new Date(selectedDate) : new Date();
+      if (editingEntry) {
+        // Update existing entry
+        setEntries(entries.map(e => e.id === editingEntry.id
+          ? { ...e, ...currentEntry }
+          : e
+        ));
+        setEditingEntry(null);
+      } else {
+        // Use selectedDate if provided, otherwise use today
+        const targetDate = selectedDate || new Date().toLocaleDateString();
+        const targetDateObj = selectedDate ? new Date(selectedDate) : new Date();
 
-      const newEntry = {
-        id: Date.now(),
-        ...currentEntry,
-        timestamp: targetDateObj.toISOString(),
-        date: targetDate,
-        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-      };
-      setEntries([newEntry, ...entries]);
+        const newEntry = {
+          id: Date.now(),
+          ...currentEntry,
+          timestamp: targetDateObj.toISOString(),
+          date: targetDate,
+          time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        };
+        setEntries([newEntry, ...entries]);
+        setSelectedDate(null); // Reset selected date
+      }
       setCurrentEntry({ content: '', mood: 'grateful', photo: null, audio: null });
       setShowForm(false);
-      setSelectedDate(null); // Reset selected date
     }
   };
 
   const handleDeleteEntry = (entryId) => {
     setEntries(entries.filter(e => e.id !== entryId));
+    setExpandedEntry(null);
+  };
+
+  const handleEditEntry = (entry) => {
+    setEditingEntry(entry);
+    setCurrentEntry({
+      content: entry.content,
+      mood: entry.mood,
+      photo: entry.photo,
+      audio: entry.audio
+    });
+    setExpandedEntry(null);
+    setExpandedDay(null); // Close the calendar day view modal
+    setShowForm(true);
   };
 
   const handlePhotoUpload = (e) => {
@@ -336,6 +361,7 @@ export default function HoneyJarApp() {
             handleJarClick={handleJarClick}
             handleWeekJarClick={handleWeekJarClick}
             handleDeleteEntry={handleDeleteEntry}
+            setExpandedEntry={setExpandedEntry}
           />
         ) : (
           <CalendarView 
@@ -357,11 +383,14 @@ export default function HoneyJarApp() {
             onClose={() => {
               setShowForm(false);
               setSelectedDate(null);
+              setEditingEntry(null);
+              setCurrentEntry({ content: '', mood: 'grateful', photo: null, audio: null });
             }}
             isRecording={isRecording}
             startRecording={startRecording}
             stopRecording={stopRecording}
             selectedDate={selectedDate}
+            isEditing={!!editingEntry}
           />
         )}
 
@@ -376,9 +405,19 @@ export default function HoneyJarApp() {
               setDayRecap(null);
             }}
             handleDeleteEntry={handleDeleteEntry}
+            setExpandedEntry={setExpandedEntry}
             onNavigate={(newDate) => {
               handleJarClick(newDate);
             }}
+          />
+        )}
+
+        {expandedEntry && (
+          <ExpandedEntryModal
+            entry={expandedEntry}
+            onClose={() => setExpandedEntry(null)}
+            onEdit={() => handleEditEntry(expandedEntry)}
+            onDelete={() => handleDeleteEntry(expandedEntry.id)}
           />
         )}
       </div>
@@ -622,7 +661,7 @@ function CozyBear({ name, flip, size = 'default' }) {
   );
 }
 
-function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, canAddMore, setShowForm, setSelectedDate, handleJarClick, handleWeekJarClick, handleDeleteEntry }) {
+function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, canAddMore, setShowForm, setSelectedDate, handleJarClick, handleWeekJarClick, handleDeleteEntry, setExpandedEntry }) {
   // Randomly choose which bear gives the daily message
   const [dailyBear] = useState(() => Math.random() > 0.5 ? 'Cherry' : 'Beary');
   const bearEmoji = dailyBear === 'Cherry' ? '🍒🌿' : '🐻🍯';
@@ -683,7 +722,7 @@ function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, c
         </div>
 
         <div className="p-3 rounded-xl" style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 248, 220, 0.95))',
+          background: 'linear-gradient(135deg, rgba(251, 224, 179, 0.95), rgba(251, 224, 179, 0.95)',
           border: '2px solid rgba(255, 215, 0, 0.4)',
           boxShadow: '0 4px 12px rgba(139, 69, 19, 0.3)'
         }}>
@@ -703,7 +742,7 @@ function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, c
 
       {canAddMore && (
         <div className="mb-2 p-2 rounded-2xl" style={{
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 250, 240, 0.95))',
+          background: 'linear-gradient(135deg, rgba(251, 224, 179, 0.95), rgba(251, 224, 179, 0.95))',
           boxShadow: '0 4px 16px rgba(139, 69, 19, 0.2)',
           border: '2px solid rgba(255, 255, 255, 0.6)'
         }}>
@@ -711,7 +750,7 @@ function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, c
             <div className="text-xl">🐻</div>
             <input
               type="text"
-              placeholder="What are you grateful for?"
+              placeholder="What are you adding into your honey jar?"
               onClick={() => {
                 setSelectedDate(null);
                 setShowForm(true);
@@ -734,6 +773,7 @@ function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, c
                 background: 'linear-gradient(135deg, #FFA500, #FF8C00)',
                 color: 'white',
                 fontFamily: 'Georgia, serif',
+                fontSize: '10px',
                 boxShadow: '0 2px 6px rgba(255, 140, 0, 0.4)'
               }}
             >
@@ -745,7 +785,12 @@ function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, c
 
       <div className="flex-1 overflow-y-auto space-y-2">
         {getTodayEntries().map((entry) => (
-          <EntryCard key={entry.id} entry={entry} onDelete={() => handleDeleteEntry(entry.id)} />
+          <EntryCard
+            key={entry.id}
+            entry={entry}
+            onDelete={() => handleDeleteEntry(entry.id)}
+            onClick={() => setExpandedEntry(entry)}
+          />
         ))}
       </div>
     </div>
@@ -775,7 +820,7 @@ function CalendarView({ getMonthWeeks, selectedMonth, selectedYear, setSelectedM
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden p-2 rounded-2xl" style={{
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 220, 0.9))',
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 248, 220, 0.6))',
       boxShadow: '0 4px 16px rgba(139, 69, 19, 0.2)',
       backdropFilter: 'blur(10px)',
       border: '2px solid rgba(255, 255, 255, 0.5)'
@@ -855,13 +900,27 @@ function CalendarView({ getMonthWeeks, selectedMonth, selectedYear, setSelectedM
   );
 }
 
-function EntryCard({ entry, onDelete }) {
+function EntryCard({ entry, onDelete, onClick }) {
+  const handleCardClick = (e) => {
+    // Don't trigger card click when clicking delete button or audio controls
+    if (e.target.closest('button') || e.target.closest('audio')) {
+      return;
+    }
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
-    <div className="p-4 rounded-2xl" style={{
-      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 250, 240, 0.95))',
-      border: '2px solid rgba(205, 133, 63, 0.2)',
-      boxShadow: '0 4px 12px rgba(139, 69, 19, 0.1)'
-    }}>
+    <div
+      className="p-4 rounded-2xl cursor-pointer transition-all hover:shadow-lg"
+      style={{
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 250, 240, 0.95))',
+        border: '2px solid rgba(205, 133, 63, 0.2)',
+        boxShadow: '0 4px 12px rgba(139, 69, 19, 0.1)'
+      }}
+      onClick={handleCardClick}
+    >
       <div className="flex gap-3">
         {entry.photo && (
           <img
@@ -879,7 +938,10 @@ function EntryCard({ entry, onDelete }) {
             <div className="flex items-center gap-2">
               <span style={{ fontSize: '13px', color: '#A0826D' }}>{entry.time}</span>
               <button
-                onClick={onDelete}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
                 className="p-1 rounded-full hover:bg-red-100 transition-all"
                 style={{ color: '#DC143C' }}
                 title="Delete entry"
@@ -888,11 +950,17 @@ function EntryCard({ entry, onDelete }) {
               </button>
             </div>
           </div>
-          <p style={{ fontFamily: 'Georgia, serif', color: '#8B4513', lineHeight: '1.6' }}>
-            {entry.content}
-          </p>
+          <div style={{
+            maxHeight: '60px',
+            overflowY: 'auto',
+            overflowX: 'hidden'
+          }}>
+            <p style={{ fontFamily: 'Georgia, serif', color: '#8B4513', lineHeight: '1.4', fontSize: '11px' }}>
+              {entry.content}
+            </p>
+          </div>
           {entry.audio && (
-            <audio controls className="w-full mt-2 h-8">
+            <audio controls className="w-full mt-2 h-8" onClick={(e) => e.stopPropagation()}>
               <source src={entry.audio} type="audio/wav" />
             </audio>
           )}
@@ -902,13 +970,17 @@ function EntryCard({ entry, onDelete }) {
   );
 }
 
-function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAddEntry, onClose, isRecording, startRecording, stopRecording, selectedDate }) {
+function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAddEntry, onClose, isRecording, startRecording, stopRecording, selectedDate, isEditing }) {
+  const [customMood, setCustomMood] = useState('');
+  const [showCustomMoodInput, setShowCustomMoodInput] = useState(false);
+
   const getMoodEmoji = (mood) => {
     const emojis = {
       grateful: '🙏',
       joyful: '😊',
       peaceful: '🧘',
-      excited: '🎉'
+      excited: '🎉',
+      anxious: '😰'
     };
     return emojis[mood] || '💛';
   };
@@ -931,17 +1003,17 @@ function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAdd
       backdropFilter: 'blur(10px)'
     }}>
       <div className="max-w-lg w-full max-h-[90vh] overflow-y-auto p-8 rounded-3xl" style={{
-        background: 'linear-gradient(135deg, #FFF9E6, #FFFAF0)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        background: '#fbde8eff',
+        boxShadow: '0 20px 60px rgba(111, 46, 2, 0.3)',
         border: '3px solid rgba(255, 255, 255, 0.8)'
       }}>
         <h3 className="text-3xl font-bold text-center mb-2" style={{
           fontFamily: 'Georgia, serif',
           color: '#8B4513'
         }}>
-          Add Honey Drop
+          {isEditing ? 'Edit Honey Drop' : 'Add Honey Drop'}
         </h3>
-        {selectedDate && (
+        {selectedDate && !isEditing && (
           <p className="text-center mb-4" style={{
             fontFamily: 'Georgia, serif',
             color: '#A0826D',
@@ -969,13 +1041,16 @@ function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAdd
             How do you feel?
           </label>
           <div className="grid grid-cols-2 gap-2">
-            {['grateful', 'joyful', 'peaceful', 'excited'].map((mood) => (
+            {['grateful', 'joyful', 'peaceful', 'excited', 'anxious'].map((mood) => (
               <button
                 key={mood}
-                onClick={() => setCurrentEntry({ ...currentEntry, mood })}
+                onClick={() => {
+                  setCurrentEntry({ ...currentEntry, mood });
+                  setShowCustomMoodInput(false);
+                }}
                 className="p-3 rounded-xl transition-all capitalize"
                 style={{
-                  background: currentEntry.mood === mood 
+                  background: currentEntry.mood === mood
                     ? 'linear-gradient(135deg, #FFD700, #FFA500)'
                     : 'rgba(255, 248, 220, 0.5)',
                   border: `2px solid ${currentEntry.mood === mood ? '#FF8C00' : 'rgba(205, 133, 63, 0.3)'}`,
@@ -987,7 +1062,40 @@ function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAdd
                 {getMoodEmoji(mood)} {mood}
               </button>
             ))}
+            <button
+              onClick={() => setShowCustomMoodInput(!showCustomMoodInput)}
+              className="p-3 rounded-xl transition-all"
+              style={{
+                background: showCustomMoodInput
+                  ? 'linear-gradient(135deg, #FFD700, #FFA500)'
+                  : 'rgba(255, 248, 220, 0.5)',
+                border: `2px solid ${showCustomMoodInput ? '#FF8C00' : 'rgba(205, 133, 63, 0.3)'}`,
+                fontFamily: 'Georgia, serif',
+                color: showCustomMoodInput ? 'white' : '#8B4513',
+                fontWeight: showCustomMoodInput ? 'bold' : 'normal'
+              }}
+            >
+              ✏️ Custom
+            </button>
           </div>
+          {showCustomMoodInput && (
+            <input
+              type="text"
+              value={customMood}
+              onChange={(e) => {
+                setCustomMood(e.target.value);
+                setCurrentEntry({ ...currentEntry, mood: e.target.value });
+              }}
+              placeholder="Enter your own feeling..."
+              className="w-full mt-2 p-3 rounded-xl outline-none"
+              style={{
+                background: 'rgba(255, 248, 220, 0.5)',
+                border: '2px solid rgba(205, 133, 63, 0.3)',
+                fontFamily: 'Georgia, serif',
+                color: '#8B4513'
+              }}
+            />
+          )}
         </div>
 
         <div className="mb-4">
@@ -1021,7 +1129,7 @@ function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAdd
             style={{
               background: isRecording 
                 ? 'linear-gradient(135deg, #DC143C, #8B0000)'
-                : 'linear-gradient(135deg, #87CEEB, #4682B4)',
+                : 'linear-gradient(135deg, #c76712ff, #e09a5dff)',
               color: 'white',
               fontFamily: 'Georgia, serif',
               fontWeight: 'bold',
@@ -1062,7 +1170,7 @@ function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAdd
               boxShadow: !currentEntry.content && !currentEntry.photo && !currentEntry.audio ? 'none' : '0 4px 12px rgba(255, 140, 0, 0.4)'
             }}
           >
-            Save Honey Drop
+            {isEditing ? 'Update Honey Drop' : 'Save Honey Drop'}
           </button>
           <button
             onClick={onClose}
@@ -1082,7 +1190,7 @@ function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAdd
   );
 }
 
-function ExpandedJarModal({ date, entries, dayRecap, isGeneratingRecap, onClose, handleDeleteEntry, onNavigate }) {
+function ExpandedJarModal({ date, entries, dayRecap, isGeneratingRecap, onClose, handleDeleteEntry, setExpandedEntry, onNavigate }) {
   // Randomly choose which bear gives the day recap
   const [recapBear] = useState(() => Math.random() > 0.5 ? 'Cherry' : 'Beary');
 
@@ -1206,8 +1314,137 @@ function ExpandedJarModal({ date, entries, dayRecap, isGeneratingRecap, onClose,
             Today's Honey Drops:
           </h4>
           {entries.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} onDelete={() => handleDeleteEntry(entry.id)} />
+            <EntryCard
+              key={entry.id}
+              entry={entry}
+              onDelete={() => handleDeleteEntry(entry.id)}
+              onClick={() => setExpandedEntry(entry)}
+            />
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExpandedEntryModal({ entry, onClose, onEdit, onDelete }) {
+  const getMoodEmoji = (mood) => {
+    const emojis = {
+      grateful: '🙏',
+      joyful: '😊',
+      peaceful: '🧘',
+      excited: '🎉',
+      anxious: '😰'
+    };
+    return emojis[mood] || '💛';
+  };
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{
+      background: 'rgba(139, 111, 71, 0.8)',
+      backdropFilter: 'blur(10px)'
+    }}>
+      <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 rounded-3xl relative" style={{
+        background: 'linear-gradient(135deg, #FFF9E6, #FFFAF0)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+        border: '3px solid rgba(255, 255, 255, 0.8)'
+      }}>
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-amber-100 transition-all"
+          style={{ color: '#8B4513' }}
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        <div className="mb-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-2xl font-bold mb-2" style={{
+                fontFamily: 'Georgia, serif',
+                color: '#8B4513'
+              }}>
+                Honey Drop Details
+              </h3>
+              <p style={{ fontFamily: 'Georgia, serif', color: '#A0826D', fontSize: '14px' }}>
+                {entry.date} at {entry.time}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6 p-4 rounded-2xl" style={{
+            background: 'linear-gradient(135deg, rgba(255, 248, 220, 0.6), rgba(255, 239, 213, 0.6))',
+            border: '2px solid rgba(205, 133, 63, 0.3)'
+          }}>
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ fontSize: '24px' }}>{getMoodEmoji(entry.mood)}</span>
+              <span style={{ fontFamily: 'Georgia, serif', color: '#8B4513', fontSize: '18px', fontWeight: 'bold', textTransform: 'capitalize' }}>
+                {entry.mood}
+              </span>
+            </div>
+            <p style={{ fontFamily: 'Georgia, serif', color: '#8B4513', lineHeight: '1.8', fontSize: '16px' }}>
+              {entry.content}
+            </p>
+          </div>
+
+          {entry.photo && (
+            <div className="mb-6">
+              <h4 style={{ fontFamily: 'Georgia, serif', color: '#8B4513', fontWeight: 'bold', marginBottom: '12px', fontSize: '16px' }}>
+                Photo Memory
+              </h4>
+              <img
+                src={entry.photo}
+                alt="Memory"
+                className="w-full rounded-2xl object-cover"
+                style={{
+                  border: '3px solid rgba(205, 133, 63, 0.3)',
+                  maxHeight: '400px'
+                }}
+              />
+            </div>
+          )}
+
+          {entry.audio && (
+            <div className="mb-6">
+              <h4 style={{ fontFamily: 'Georgia, serif', color: '#8B4513', fontWeight: 'bold', marginBottom: '12px', fontSize: '16px' }}>
+                Voice Memo
+              </h4>
+              <audio controls className="w-full" style={{
+                borderRadius: '12px',
+                background: 'rgba(255, 248, 220, 0.6)',
+                padding: '8px'
+              }}>
+                <source src={entry.audio} type="audio/wav" />
+              </audio>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onEdit}
+            className="flex-1 py-3 rounded-xl font-bold transition-all hover:scale-105"
+            style={{
+              background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+              color: 'white',
+              fontFamily: 'Georgia, serif',
+              boxShadow: '0 4px 12px rgba(255, 140, 0, 0.4)'
+            }}
+          >
+            Edit Entry
+          </button>
+          <button
+            onClick={onDelete}
+            className="px-6 py-3 rounded-xl font-bold transition-all hover:scale-105"
+            style={{
+              background: 'linear-gradient(135deg, #DC143C, #8B0000)',
+              color: 'white',
+              fontFamily: 'Georgia, serif',
+              boxShadow: '0 4px 12px rgba(220, 20, 60, 0.4)'
+            }}
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>
