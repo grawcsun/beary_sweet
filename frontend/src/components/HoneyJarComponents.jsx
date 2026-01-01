@@ -1,3 +1,4 @@
+/*
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import MagicalForestBackground from './components/MagicalForestBackground';
@@ -311,3 +312,4 @@ export default function HoneyJarApp() {
     </div>
   );
 }
+*/
