@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Mic, MicOff, Camera, Sparkles, Lock, ChevronLeft, ChevronRight, X, Trash2 } from 'lucide-react';
 
 export default function HoneyJarApp() {
+  const [currentUser, setCurrentUser] = useState(null); // Track logged in user
   const [entries, setEntries] = useState([]);
   const [currentEntry, setCurrentEntry] = useState({ content: '', mood: 'grateful', photo: null, audio: null });
   const [showForm, setShowForm] = useState(false);
@@ -18,20 +19,65 @@ export default function HoneyJarApp() {
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
 
+  // Load saved user session on mount
   useEffect(() => {
-    const saved = localStorage.getItem('honeyJarEntries');
-    if (saved) {
-      setEntries(JSON.parse(saved));
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
     }
   }, []);
 
+  // Load entries for current user
   useEffect(() => {
-    if (entries.length > 0) {
-      localStorage.setItem('honeyJarEntries', JSON.stringify(entries));
-    } else {
-      localStorage.removeItem('honeyJarEntries');
+    if (currentUser) {
+      const saved = localStorage.getItem(`honeyJarEntries_${currentUser.username}`);
+      if (saved) {
+        setEntries(JSON.parse(saved));
+      }
     }
-  }, [entries]);
+  }, [currentUser]);
+
+  // Save entries for current user
+  useEffect(() => {
+    if (currentUser) {
+      if (entries.length > 0) {
+        try {
+          localStorage.setItem(`honeyJarEntries_${currentUser.username}`, JSON.stringify(entries));
+        } catch (error) {
+          if (error.name === 'QuotaExceededError') {
+            alert('Storage limit reached! Please delete some old entries or avoid adding large photos. Photos are now automatically compressed to save space.');
+            console.error('LocalStorage quota exceeded:', error);
+          }
+        }
+      } else {
+        localStorage.removeItem(`honeyJarEntries_${currentUser.username}`);
+      }
+    }
+  }, [entries, currentUser]);
+
+  const handleLogin = (username, password) => {
+    // Simple authentication - in production, use proper backend authentication
+    const user = { username, password };
+    setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setEntries([]);
+    localStorage.removeItem('currentUser');
+  };
+
+  // Helper function to check localStorage usage
+  const getStorageSize = () => {
+    let total = 0;
+    for (let key in localStorage) {
+      if (localStorage.hasOwnProperty(key)) {
+        total += localStorage[key].length + key.length;
+      }
+    }
+    return (total / 1024).toFixed(2); // Return size in KB
+  };
 
   const handleAddEntry = () => {
     if (currentEntry.content.trim() || currentEntry.photo || currentEntry.audio) {
@@ -85,7 +131,39 @@ export default function HoneyJarApp() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCurrentEntry({ ...currentEntry, photo: reader.result });
+        // Compress the image before storing
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+
+          // Set max dimensions (reduce size to save storage)
+          const maxWidth = 800;
+          const maxHeight = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to JPEG with 0.7 quality (smaller file size)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          setCurrentEntry({ ...currentEntry, photo: compressedDataUrl });
+        };
+        img.src = reader.result;
       };
       reader.readAsDataURL(file);
     }
@@ -94,7 +172,10 @@ export default function HoneyJarApp() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder.current = new MediaRecorder(stream);
+
+      // Use webm format with opus codec for smaller file size
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+      mediaRecorder.current = new MediaRecorder(stream, options);
       audioChunks.current = [];
 
       mediaRecorder.current.ondataavailable = (event) => {
@@ -102,9 +183,13 @@ export default function HoneyJarApp() {
       };
 
       mediaRecorder.current.onstop = () => {
-        const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        setCurrentEntry({ ...currentEntry, audio: audioUrl });
+        const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+        // Convert blob to base64 for localStorage (more compact than object URL)
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setCurrentEntry({ ...currentEntry, audio: reader.result });
+        };
+        reader.readAsDataURL(audioBlob);
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -246,6 +331,11 @@ export default function HoneyJarApp() {
     '/Background1.png'
   ];
 
+  // Show login screen if no user is logged in
+  if (!currentUser) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   return (
     <div className="relative overflow-hidden" style={{
       width: '480px',
@@ -259,7 +349,21 @@ export default function HoneyJarApp() {
       <MagicalForestBackground />
 
       <div className="relative z-10 p-3 h-full flex flex-col">
-        <header className="text-center py-2 mb-2">
+        <header className="text-center py-2 mb-2 relative">
+          <button
+            onClick={handleLogout}
+            className="absolute top-2 right-2 px-3 py-1 rounded-full font-semibold transition-all hover:scale-105 text-xs flex items-center gap-1"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 220, 0.9))',
+              color: '#8B4513',
+              fontFamily: 'Georgia, serif',
+              boxShadow: '0 2px 8px rgba(139, 69, 19, 0.1)',
+              border: '2px solid rgba(255, 255, 255, 0.5)'
+            }}
+          >
+            <Lock className="w-3 h-3" />
+            Logout
+          </button>
           <h1 className="text-3xl font-bold mb-1 relative inline-block" style={{
             fontFamily: 'Georgia, serif',
             color: '#FFD700',
@@ -967,7 +1071,7 @@ function EntryCard({ entry, onDelete, onClick }) {
           </div>
           {entry.audio && (
             <audio controls className="w-full mt-2 h-8" onClick={(e) => e.stopPropagation()}>
-              <source src={entry.audio} type="audio/wav" />
+              <source src={entry.audio} type="audio/webm" />
             </audio>
           )}
         </div>
@@ -1156,7 +1260,7 @@ function EntryForm({ currentEntry, setCurrentEntry, handlePhotoUpload, handleAdd
           </button>
           {currentEntry.audio && (
             <audio controls className="w-full mt-2">
-              <source src={currentEntry.audio} type="audio/wav" />
+              <source src={currentEntry.audio} type="audio/webm" />
             </audio>
           )}
         </div>
@@ -1420,7 +1524,7 @@ function ExpandedEntryModal({ entry, onClose, onEdit, onDelete }) {
                 background: 'rgba(255, 248, 220, 0.6)',
                 padding: '8px'
               }}>
-                <source src={entry.audio} type="audio/wav" />
+                <source src={entry.audio} type="audio/webm" />
               </audio>
             </div>
           )}
@@ -1451,6 +1555,177 @@ function ExpandedEntryModal({ entry, onClose, onEdit, onDelete }) {
           >
             Delete
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (username.trim() && password.trim()) {
+      onLogin(username.trim(), password);
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden flex items-center justify-center" style={{
+      width: '480px',
+      height: '932px',
+      margin: '0 auto',
+      backgroundImage: 'url(/Background1.png)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat'
+    }}>
+      <MagicalForestBackground />
+
+      <div className="relative z-10 w-full max-w-md p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-bold mb-3 relative inline-block" style={{
+            fontFamily: 'Georgia, serif',
+            color: '#FFD700',
+            textShadow: `
+              2px 2px 0px #FFA500,
+              4px 4px 0px #FF8C00,
+              6px 6px 8px rgba(139, 69, 19, 0.5),
+              0 0 15px rgba(255, 215, 0, 0.3)
+            `,
+            letterSpacing: '0.05em',
+            WebkitTextStroke: '1px #FF8C00'
+          }}>
+            Honey Jar
+          </h1>
+          <p className="text-sm" style={{
+            fontFamily: 'Georgia, serif',
+            color: '#FFE4B5',
+            textShadow: '1px 1px 2px rgba(0,0,0,0.2)',
+            fontWeight: '500'
+          }}>
+            Your Personal Gratitude Journal
+          </p>
+        </div>
+
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center gap-4">
+            <CozyBear name="BEARY" size="large" />
+            <CozyBear name="CHERRY" size="large" />
+          </div>
+        </div>
+
+        <div className="p-8 rounded-3xl" style={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 248, 220, 0.95))',
+          boxShadow: '0 20px 60px rgba(139, 69, 19, 0.3)',
+          border: '3px solid rgba(255, 255, 255, 0.8)'
+        }}>
+          <h2 className="text-2xl font-bold text-center mb-6" style={{
+            fontFamily: 'Georgia, serif',
+            color: '#8B4513'
+          }}>
+            {isSignup ? 'Create Account' : 'Welcome Back'}
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block mb-2" style={{
+                fontFamily: 'Georgia, serif',
+                color: '#8B4513',
+                fontWeight: 'bold',
+                fontSize: '14px'
+              }}>
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                className="w-full p-3 rounded-xl outline-none"
+                style={{
+                  background: 'rgba(255, 248, 220, 0.5)',
+                  border: '2px solid rgba(205, 133, 63, 0.3)',
+                  fontFamily: 'Georgia, serif',
+                  color: '#8B4513'
+                }}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block mb-2" style={{
+                fontFamily: 'Georgia, serif',
+                color: '#8B4513',
+                fontWeight: 'bold',
+                fontSize: '14px'
+              }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full p-3 rounded-xl outline-none"
+                style={{
+                  background: 'rgba(255, 248, 220, 0.5)',
+                  border: '2px solid rgba(205, 133, 63, 0.3)',
+                  fontFamily: 'Georgia, serif',
+                  color: '#8B4513'
+                }}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-4 rounded-xl font-bold transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                color: 'white',
+                fontFamily: 'Georgia, serif',
+                boxShadow: '0 4px 12px rgba(255, 140, 0, 0.4)',
+                border: 'none'
+              }}
+            >
+              {isSignup ? 'Sign Up' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="text-center mt-4">
+            <button
+              onClick={() => setIsSignup(!isSignup)}
+              className="text-sm transition-all hover:underline"
+              style={{
+                fontFamily: 'Georgia, serif',
+                color: '#A0826D',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {isSignup ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            </button>
+          </div>
+
+          <div className="mt-6 p-3 rounded-xl" style={{
+            background: 'linear-gradient(135deg, rgba(251, 224, 179, 0.5), rgba(251, 224, 179, 0.5))',
+            border: '2px solid rgba(205, 133, 63, 0.2)'
+          }}>
+            <p style={{
+              fontFamily: 'Georgia, serif',
+              color: '#8B4513',
+              fontSize: '12px',
+              textAlign: 'center',
+              lineHeight: '1.4'
+            }}>
+              Your journal entries are stored securely in your browser's local memory.
+            </p>
+          </div>
         </div>
       </div>
     </div>
