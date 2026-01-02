@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd honey-jar && npm run build",
+  "outputDirectory": "honey-jar/build",
+  "installCommand": "cd honey-jar && npm install",
+  "framework": null
+}
