@@ -58,9 +58,9 @@ export default function TodayView({ entries, getCurrentWeekJars, getTodayEntries
 
       <div className="mb-3" style={{ marginTop: '-160px' }}>
         <div className="flex items-center justify-between mb-2 px-2">
-          <CozyBear name="BEARY" size="large" />
+          <CozyBear name="Beary" size="large" />
           <div style={{ width: '150px' }} />
-          <CozyBear name="CHERRY" size="large" />
+          <CozyBear name="Cherry" size="large" />
         </div>
 
         <div className="p-3 rounded-xl" style={{

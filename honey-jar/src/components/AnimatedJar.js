@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function AnimatedJar({ count, size = 'medium', onClick, isToday }) {
+export default function AnimatedJar({ count, size = 'medium', onClick, isToday, skipAnimation = false }) {
   const [currentFrame, setCurrentFrame] = useState(1);
   const [isAnimating, setIsAnimating] = useState(false);
   const previousCount = useRef(count);
@@ -34,6 +34,12 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday }
     }
 
     if (previousCount.current === count) return;
+
+    // Skip animation if explicitly disabled (e.g., when navigating between days)
+    if (skipAnimation) {
+      previousCount.current = count;
+      return;
+    }
 
     const oldCount = previousCount.current;
     const newCount = count;

@@ -54,8 +54,8 @@ export default function LoginScreen({ onLogin }) {
 
         <div className="flex justify-center mb-6">
           <div className="flex items-center gap-4">
-            <CozyBear name="BEARY" size="large" />
-            <CozyBear name="CHERRY" size="large" />
+            <CozyBear name="Beary" size="large" />
+            <CozyBear name="Cherry" size="large" />
           </div>
         </div>
 

@@ -45,7 +45,7 @@ export default function CozyBear({ name, flip, size = 'default' }) {
         textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
         transform: flip ? 'scaleX(-1)' : 'none'
       }}>
-        {name}
+        {name.toUpperCase()}
       </div>
     </div>
   );

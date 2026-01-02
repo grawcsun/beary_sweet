@@ -71,7 +71,7 @@ export default function ExpandedJarModal({ date, entries, dayRecap, isGenerating
           </h3>
 
           <div className="flex justify-center">
-            <AnimatedJar count={entries.length} size="xlarge" />
+            <AnimatedJar count={entries.length} size="xlarge" skipAnimation={true} />
           </div>
 
           <p style={{ fontFamily: 'Georgia, serif', color: '#CD853F', marginTop: '8px' }}>
