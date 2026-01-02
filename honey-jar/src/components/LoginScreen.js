@@ -19,7 +19,7 @@ export default function LoginScreen({ onLogin }) {
       width: '480px',
       height: '932px',
       margin: '0 auto',
-      backgroundImage: 'url(/Background1.png)',
+      backgroundImage: `url(${process.env.PUBLIC_URL}/Background1.png)`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat'

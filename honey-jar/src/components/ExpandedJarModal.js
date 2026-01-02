@@ -18,7 +18,7 @@ export default function ExpandedJarModal({ date, entries, dayRecap, isGenerating
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-4 z-50" style={{
-      backgroundImage: 'url(/ForestBackground.png)',
+      backgroundImage: `url(${process.env.PUBLIC_URL}/ForestBackground.png)`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat'
@@ -86,12 +86,16 @@ export default function ExpandedJarModal({ date, entries, dayRecap, isGenerating
           <div className="flex items-start gap-3">
             <div style={{ width: '120px', flexShrink: 0 }}>
               <img
-                src={`/${recapBear}.png`}
+                src={`${process.env.PUBLIC_URL}/${recapBear}.png`}
                 alt={recapBear}
                 style={{
                   width: '120px',
                   height: '120px',
                   objectFit: 'contain'
+                }}
+                onError={(e) => {
+                  console.error(`Failed to load bear image: ${recapBear}.png`);
+                  e.target.style.display = 'none';
                 }}
               />
               <div style={{

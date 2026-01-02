@@ -23,13 +23,17 @@ export default function CozyBear({ name, flip, size = 'default' }) {
       transition: 'transform 0.1s ease-out'
     }}>
       <img
-        src={`/${name}.png`}
+        src={`${process.env.PUBLIC_URL}/${name}.png`}
         alt={name}
         style={{
           width: bearSize.width,
           height: bearSize.height,
           objectFit: 'contain',
           transform: `translateY(${bounceY}px)`
+        }}
+        onError={(e) => {
+          console.error(`Failed to load image: ${name}.png`);
+          e.target.style.display = 'none';
         }}
       />
       <div style={{

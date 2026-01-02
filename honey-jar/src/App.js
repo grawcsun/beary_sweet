@@ -302,7 +302,7 @@ export default function HoneyJarApp() {
   const canAddMore = todayCount < 3;
 
   const backgrounds = [
-    '/Background1.png'
+    `${process.env.PUBLIC_URL}/Background1.png`
   ];
 
   // Show login screen if no user is logged in

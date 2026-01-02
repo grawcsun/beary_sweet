@@ -16,10 +16,10 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday }
 
   const getStaticImage = (state) => {
     const images = {
-      empty: '/emptyjar.png',
-      onethird: '/onethirdjar.png',
-      twothird: '/twothirdjar.png',
-      full: '/fulljar.png'
+      empty: `${process.env.PUBLIC_URL}/emptyjar.png`,
+      onethird: `${process.env.PUBLIC_URL}/onethirdjar.png`,
+      twothird: `${process.env.PUBLIC_URL}/twothirdjar.png`,
+      full: `${process.env.PUBLIC_URL}/fulljar.png`
     };
     return images[state];
   };
@@ -110,7 +110,7 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday }
       }}
     >
       <img
-        src={isAnimating ? `/filljar${currentFrame}.png` : getStaticImage(getJarState(count))}
+        src={isAnimating ? `${process.env.PUBLIC_URL}/filljar${currentFrame}.png` : getStaticImage(getJarState(count))}
         alt="Honey Jar"
         style={{
           width: '100%',
@@ -120,6 +120,9 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday }
           WebkitFontSmoothing: 'antialiased',
           backfaceVisibility: 'hidden',
           transform: 'translateZ(0)'
+        }}
+        onError={(e) => {
+          console.error(`Failed to load jar image`);
         }}
       />
       {isToday && (
