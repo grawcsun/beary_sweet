@@ -242,12 +242,16 @@ export default function HoneyJarApp() {
   const todayCount = getTodayEntries().length;
   const canAddMore = todayCount < 3;
 
+  const backgrounds = [
+    '/Background1.png'
+  ];
+
   return (
     <div className="relative overflow-hidden" style={{
       width: '480px',
       height: '932px',
       margin: '0 auto',
-      backgroundImage: 'url(/ForestBackground.png)',
+      backgroundImage: `url(${backgrounds[0]})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat'
@@ -507,7 +511,7 @@ function AnimatedJar({ count, size = 'medium', onClick, isToday }) {
           setIsAnimating(false);
           previousCount.current = newCount;
         }
-      }, 200); // 50ms per frame for smoother, faster animation
+      }, 200); // 200ms per frame for smoother, faster animation
 
       return () => clearInterval(interval);
     } else {
@@ -716,7 +720,7 @@ function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, c
         </div>
       </div>
 
-      <div className="mb-3" style={{ marginTop: '-150px' }}>
+      <div className="mb-3" style={{ marginTop: '-160px' }}>
         <div className="flex items-center justify-between mb-2 px-2">
           <CozyBear name="BEARY" size="large" />
           <div style={{ width: '150px' }} />
