@@ -6,7 +6,7 @@ import EntryCard from './EntryCard';
 export default function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, canAddMore, setShowForm, setSelectedDate, handleJarClick, handleWeekJarClick, handleDeleteEntry, setExpandedEntry }) {
   // Randomly choose which bear gives the daily message
   const [dailyBear] = useState(() => Math.random() > 0.5 ? 'Cherry' : 'Beary');
-  const bearEmoji = dailyBear === 'Cherry' ? '🍒🌿' : '🐻🍯';
+  const bearEmoji = dailyBear === 'Cherry' ? '🍒' : '🍓';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -71,11 +71,11 @@ export default function TodayView({ entries, getCurrentWeekJars, getTodayEntries
           <div className="flex items-start gap-2">
             <span className="text-lg">{bearEmoji}</span>
             <div>
-              <p style={{ fontFamily: 'Georgia, serif', color: '#8B4513', lineHeight: '1.4', fontSize: '11px' }}>
-                <strong>{dailyBear}:</strong> I'm noticing a calm, nature-y glow in your jar ✨
+              <p style={{ fontFamily: 'Georgia, serif', color: '#8B4513', lineHeight: '1.4', fontSize: '12px' }}>
+                <strong>{dailyBear}:</strong> I'm hungry!!
               </p>
-              <p style={{ fontFamily: 'Georgia, serif', color: '#A0826D', fontSize: '9px', marginTop: '4px' }}>
-                Tip: Aim for 1~3 drops/day. Small is sustainable.
+              <p style={{ fontFamily: 'Georgia, serif', color: '#A0826D', fontSize: '10px', marginTop: '4px' }}>
+                Tip: Feed me 1~3 drops of honey every day so I can get smarter :) 
               </p>
             </div>
           </div>
