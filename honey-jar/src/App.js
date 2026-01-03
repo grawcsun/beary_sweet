@@ -8,7 +8,7 @@ import ExpandedJarModal from './components/ExpandedJarModal';
 import ExpandedEntryModal from './components/ExpandedEntryModal';
 import LoginScreen from './components/LoginScreen';
 import { generateDayRecap } from './services/aiAgent';
-import { saveEntriesSmart, loadEntriesSmart } from './services/database';
+import { saveEntriesSmart, subscribeToEntries } from './services/database';
 import { onAuthStateChanged, signOut as authSignOut } from './services/auth';
 
 export default function HoneyJarApp() {
@@ -28,40 +28,60 @@ export default function HoneyJarApp() {
   const [editingEntry, setEditingEntry] = useState(null); // Track which entry is being edited
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
+  const initialLoadComplete = useRef(false); // Track if initial data load is complete
 
   // Listen to Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged((user) => {
       setCurrentUser(user);
+      // Reset initial load flag when user changes
+      initialLoadComplete.current = false;
     });
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
-  // Load entries for current user
+  // Subscribe to real-time updates for current user's entries
   useEffect(() => {
     if (currentUser) {
-      console.log('Loading entries for user:', currentUser.uid);
-      loadEntriesSmart(currentUser.uid).then(result => {
-        console.log('Load result:', result);
-        if (result.success) {
-          console.log('Setting entries:', result.entries);
-          setEntries(result.entries);
-        } else {
-          console.error('Failed to load entries:', result.error);
+      console.log('Setting up real-time listener for user:', currentUser.uid);
+
+      // Subscribe to real-time updates
+      const unsubscribe = subscribeToEntries(currentUser.uid, (entries) => {
+        console.log('Real-time update: Setting entries to', entries.length, 'items');
+        setEntries(entries);
+
+        // Mark initial load as complete after first data fetch
+        if (!initialLoadComplete.current) {
+          initialLoadComplete.current = true;
+          console.log('Initial data load complete');
         }
       });
+
+      // Cleanup: unsubscribe when user changes or component unmounts
+      return () => {
+        console.log('Cleaning up real-time listener');
+        unsubscribe();
+        initialLoadComplete.current = false;
+      };
     } else {
       // Clear entries when user logs out
       setEntries([]);
+      initialLoadComplete.current = false;
     }
   }, [currentUser]);
 
-  // Save entries for current user
+  // Save entries when user makes changes (only after initial load completes)
   useEffect(() => {
+    // Don't save until initial load from Firebase completes
+    if (!initialLoadComplete.current) {
+      console.log('Skipping save - waiting for initial data load from Firebase');
+      return;
+    }
+
     if (currentUser && entries.length >= 0) {
-      console.log('Saving entries for user:', currentUser.uid, 'Entries count:', entries.length);
+      console.log('User made changes - saving to Firebase. Entries count:', entries.length);
       saveEntriesSmart(currentUser.uid, entries, currentUser.displayName)
         .then(result => {
           console.log('Save result:', result);

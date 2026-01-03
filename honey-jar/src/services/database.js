@@ -2,7 +2,9 @@ import { db } from '../firebase';
 import {
   ref,
   set,
-  get
+  get,
+  onValue,
+  off
 } from 'firebase/database';
 
 /**
@@ -149,4 +151,40 @@ export const loadEntriesSmart = async (uid) => {
   } else {
     return loadFromLocalStorage(uid);
   }
+};
+
+/**
+ * Subscribe to real-time updates for user's entries
+ * @param {string} uid - User's Firebase UID
+ * @param {function} callback - Function to call when data changes (receives entries array)
+ * @returns {function} Unsubscribe function to stop listening
+ */
+export const subscribeToEntries = (uid, callback) => {
+  if (!db) {
+    console.warn('Database not initialized - cannot subscribe to real-time updates');
+    // Return empty unsubscribe function
+    return () => {};
+  }
+
+  const userRef = ref(db, `users/${uid}`);
+
+  console.log('Setting up real-time listener for:', `users/${uid}`);
+
+  const unsubscribe = onValue(userRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      console.log('Real-time update received:', data.entries?.length || 0, 'entries');
+      callback(data.entries || []);
+    } else {
+      console.log('Real-time update: No data exists yet');
+      callback([]);
+    }
+  }, (error) => {
+    console.error('Error in real-time listener:', error);
+  });
+
+  return () => {
+    console.log('Unsubscribing from real-time updates');
+    off(userRef);
+  };
 };
