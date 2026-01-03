@@ -170,7 +170,8 @@ export const subscribeToEntries = (uid, callback) => {
 
   console.log('Setting up real-time listener for:', `users/${uid}`);
 
-  const unsubscribe = onValue(userRef, (snapshot) => {
+  // Set up real-time listener and return the unsubscribe function directly
+  onValue(userRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       console.log('Real-time update received:', data.entries?.length || 0, 'entries');
@@ -183,6 +184,7 @@ export const subscribeToEntries = (uid, callback) => {
     console.error('Error in real-time listener:', error);
   });
 
+  // Return cleanup function
   return () => {
     console.log('Unsubscribing from real-time updates');
     off(userRef);
