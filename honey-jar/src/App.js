@@ -8,6 +8,8 @@ import ExpandedJarModal from './components/ExpandedJarModal';
 import ExpandedEntryModal from './components/ExpandedEntryModal';
 import LoginScreen from './components/LoginScreen';
 import { generateDayRecap } from './services/aiAgent';
+import { saveEntriesSmart, loadEntriesSmart } from './services/database';
+import { onAuthStateChanged, signOut as authSignOut } from './services/auth';
 
 export default function HoneyJarApp() {
   const [currentUser, setCurrentUser] = useState(null); // Track logged in user
@@ -27,53 +29,49 @@ export default function HoneyJarApp() {
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
 
-  // Load saved user session on mount
+  // Listen to Firebase auth state changes
   useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-    }
+    const unsubscribe = onAuthStateChanged((user) => {
+      setCurrentUser(user);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
   // Load entries for current user
   useEffect(() => {
     if (currentUser) {
-      const saved = localStorage.getItem(`honeyJarEntries_${currentUser.username}`);
-      if (saved) {
-        setEntries(JSON.parse(saved));
-      }
+      loadEntriesSmart(currentUser.uid).then(result => {
+        if (result.success) {
+          setEntries(result.entries);
+        }
+      });
+    } else {
+      // Clear entries when user logs out
+      setEntries([]);
     }
   }, [currentUser]);
 
   // Save entries for current user
   useEffect(() => {
-    if (currentUser) {
-      if (entries.length > 0) {
-        try {
-          localStorage.setItem(`honeyJarEntries_${currentUser.username}`, JSON.stringify(entries));
-        } catch (error) {
-          if (error.name === 'QuotaExceededError') {
-            alert('Storage limit reached! Please delete some old entries or avoid adding large photos. Photos are now automatically compressed to save space.');
-            console.error('LocalStorage quota exceeded:', error);
-          }
-        }
-      } else {
-        localStorage.removeItem(`honeyJarEntries_${currentUser.username}`);
-      }
+    if (currentUser && entries.length >= 0) {
+      saveEntriesSmart(currentUser.uid, entries, currentUser.displayName).catch(error => {
+        console.error('Error saving entries:', error);
+        alert('Failed to save your entries. Please check your internet connection.');
+      });
     }
   }, [entries, currentUser]);
 
-  const handleLogin = (username, password) => {
-    // Simple authentication - in production, use proper backend authentication
-    const user = { username, password };
-    setCurrentUser(user);
-    localStorage.setItem('currentUser', JSON.stringify(user));
-  };
+  // handleLogin is no longer needed - LoginScreen will handle auth directly
+  // and onAuthStateChanged will update currentUser automatically
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setEntries([]);
-    localStorage.removeItem('currentUser');
+  const handleLogout = async () => {
+    const result = await authSignOut();
+    if (!result.success) {
+      alert('Failed to log out. Please try again.');
+    }
+    // onAuthStateChanged listener will handle clearing currentUser and entries
   };
 
   const handleAddEntry = () => {
@@ -307,7 +305,7 @@ export default function HoneyJarApp() {
 
   // Show login screen if no user is logged in
   if (!currentUser) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen />;
   }
 
   return (

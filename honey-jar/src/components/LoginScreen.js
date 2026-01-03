@@ -1,16 +1,47 @@
 import React, { useState } from 'react';
 import MagicalForestBackground from './MagicalForestBackground';
 import CozyBear from './CozyBear';
+import { signUp, signIn } from '../services/auth';
 
-export default function LoginScreen({ onLogin }) {
-  const [username, setUsername] = useState('');
+export default function LoginScreen() {
+  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [isSignup, setIsSignup] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username.trim() && password.trim()) {
-      onLogin(username.trim(), password);
+    setError('');
+    setIsLoading(true);
+
+    try {
+      if (isSignup) {
+        // Sign up new user
+        if (!displayName.trim()) {
+          setError('Please enter a username');
+          setIsLoading(false);
+          return;
+        }
+        // For signup, emailOrUsername should be an email
+        const result = await signUp(emailOrUsername.trim(), password, displayName.trim());
+        if (!result.success) {
+          setError(result.error);
+        }
+        // If successful, onAuthStateChanged in App.js will handle the login
+      } else {
+        // Sign in existing user - can be either email or username
+        const result = await signIn(emailOrUsername.trim(), password);
+        if (!result.success) {
+          setError(result.error);
+        }
+        // If successful, onAuthStateChanged in App.js will handle the login
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -72,6 +103,33 @@ export default function LoginScreen({ onLogin }) {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isSignup && (
+              <div>
+                <label className="block mb-2" style={{
+                  fontFamily: 'Georgia, serif',
+                  color: '#8B4513',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}>
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Choose a username"
+                  className="w-full p-3 rounded-xl outline-none"
+                  style={{
+                    background: 'rgba(255, 248, 220, 0.5)',
+                    border: '2px solid rgba(205, 133, 63, 0.3)',
+                    fontFamily: 'Georgia, serif',
+                    color: '#8B4513'
+                  }}
+                  required
+                />
+              </div>
+            )}
+
             <div>
               <label className="block mb-2" style={{
                 fontFamily: 'Georgia, serif',
@@ -79,13 +137,13 @@ export default function LoginScreen({ onLogin }) {
                 fontWeight: 'bold',
                 fontSize: '14px'
               }}>
-                Username
+                {isSignup ? 'Email' : 'Email or Username'}
               </label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                type={isSignup ? 'email' : 'text'}
+                value={emailOrUsername}
+                onChange={(e) => setEmailOrUsername(e.target.value)}
+                placeholder={isSignup ? 'Enter your email' : 'Enter email or username'}
                 className="w-full p-3 rounded-xl outline-none"
                 style={{
                   background: 'rgba(255, 248, 220, 0.5)',
@@ -110,7 +168,7 @@ export default function LoginScreen({ onLogin }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder="Enter your password (min 6 characters)"
                 className="w-full p-3 rounded-xl outline-none"
                 style={{
                   background: 'rgba(255, 248, 220, 0.5)',
@@ -122,9 +180,26 @@ export default function LoginScreen({ onLogin }) {
               />
             </div>
 
+            {error && (
+              <div className="p-3 rounded-xl" style={{
+                background: 'rgba(255, 59, 48, 0.1)',
+                border: '2px solid rgba(255, 59, 48, 0.3)'
+              }}>
+                <p style={{
+                  fontFamily: 'Georgia, serif',
+                  color: '#D32F2F',
+                  fontSize: '12px',
+                  textAlign: 'center'
+                }}>
+                  {error}
+                </p>
+              </div>
+            )}
+
             <button
               type="submit"
-              className="w-full py-4 rounded-xl font-bold transition-all hover:scale-105"
+              disabled={isLoading}
+              className="w-full py-4 rounded-xl font-bold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: 'linear-gradient(135deg, #FFD700, #FFA500)',
                 color: 'white',
@@ -133,7 +208,7 @@ export default function LoginScreen({ onLogin }) {
                 border: 'none'
               }}
             >
-              {isSignup ? 'Sign Up' : 'Sign In'}
+              {isLoading ? 'Please wait...' : (isSignup ? 'Sign Up' : 'Sign In')}
             </button>
           </form>
 
@@ -164,7 +239,7 @@ export default function LoginScreen({ onLogin }) {
               textAlign: 'center',
               lineHeight: '1.4'
             }}>
-              Your journal entries are stored securely in your browser's local memory.
+              Your journal entries are securely stored and synced across all your devices.
             </p>
           </div>
         </div>

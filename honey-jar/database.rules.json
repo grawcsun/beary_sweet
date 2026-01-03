@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "usernames": {
+      "$username": {
+        ".read": true,
+        ".write": "!data.exists() && auth != null && newData.child('uid').val() == auth.uid",
+        ".validate": "newData.hasChildren(['email', 'uid', 'username'])",
+        "email": {
+          ".validate": "newData.isString()"
+        },
+        "uid": {
+          ".validate": "newData.isString() && newData.val() == auth.uid"
+        },
+        "username": {
+          ".validate": "newData.isString()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
