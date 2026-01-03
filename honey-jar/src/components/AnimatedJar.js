@@ -94,7 +94,7 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday, 
       // If no animation needed, still update previousCount
       previousCount.current = newCount;
     }
-  }, [count]);
+  }, [count, skipAnimation]);
 
   const sizes = {
     small: { width: 70, height: 96 },
