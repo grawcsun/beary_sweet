@@ -8,7 +8,7 @@ import ExpandedJarModal from './components/ExpandedJarModal';
 import ExpandedEntryModal from './components/ExpandedEntryModal';
 import LoginScreen from './components/LoginScreen';
 import { generateDayRecap } from './services/aiAgent';
-import { saveEntriesSmart, subscribeToEntries } from './services/database';
+import { saveEntriesSmart, loadEntriesOnce } from './services/database';
 import { onAuthStateChanged, signOut as authSignOut } from './services/auth';
 
 export default function HoneyJarApp() {
@@ -29,6 +29,8 @@ export default function HoneyJarApp() {
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
   const initialLoadComplete = useRef(false); // Track if initial data load is complete
+  const isSaving = useRef(false); // Prevent concurrent saves
+  const lastSavedEntries = useRef(null); // Track last saved state to prevent redundant saves
 
   // Listen to Firebase auth state changes
   useEffect(() => {
@@ -42,27 +44,26 @@ export default function HoneyJarApp() {
     return () => unsubscribe();
   }, []);
 
-  // Subscribe to real-time updates for current user's entries
+  // Load entries once when user logs in (bandwidth efficient)
   useEffect(() => {
     if (currentUser) {
-      console.log('Setting up real-time listener for user:', currentUser.uid);
+      console.log('Loading entries for user:', currentUser.uid);
 
-      // Subscribe to real-time updates
-      const unsubscribe = subscribeToEntries(currentUser.uid, (entries) => {
-        console.log('Real-time update: Setting entries to', entries.length, 'items');
-        setEntries(entries);
-
-        // Mark initial load as complete after first data fetch
-        if (!initialLoadComplete.current) {
+      // Load entries once from Firebase
+      loadEntriesOnce(currentUser.uid).then(result => {
+        if (result.success) {
+          console.log('Loaded entries:', result.entries.length, 'items');
+          setEntries(result.entries);
           initialLoadComplete.current = true;
           console.log('Initial data load complete');
+        } else {
+          console.error('Failed to load entries:', result.error);
+          initialLoadComplete.current = true; // Still mark as complete to allow saves
         }
       });
 
-      // Cleanup: unsubscribe when user changes or component unmounts
+      // Cleanup on logout
       return () => {
-        console.log('Cleaning up real-time listener');
-        unsubscribe();
         initialLoadComplete.current = false;
       };
     } else {
@@ -80,14 +81,32 @@ export default function HoneyJarApp() {
       return;
     }
 
+    // Prevent concurrent saves (debouncing protection)
+    if (isSaving.current) {
+      console.log('Skipping save - already saving');
+      return;
+    }
+
+    // Only save if entries actually changed (prevent redundant writes)
+    const entriesString = JSON.stringify(entries);
+    if (lastSavedEntries.current === entriesString) {
+      console.log('Skipping save - entries unchanged');
+      return;
+    }
+
     if (currentUser && entries.length >= 0) {
       console.log('User made changes - saving to Firebase. Entries count:', entries.length);
+      isSaving.current = true;
+
       saveEntriesSmart(currentUser.uid, entries, currentUser.displayName)
         .then(result => {
           console.log('Save result:', result);
+          lastSavedEntries.current = entriesString; // Track what we saved
+          isSaving.current = false;
         })
         .catch(error => {
           console.error('Error saving entries:', error);
+          isSaving.current = false;
           alert('Failed to save your entries. Please check your internet connection.');
         });
     }

@@ -2,9 +2,7 @@ import { db } from '../firebase';
 import {
   ref,
   set,
-  get,
-  onValue,
-  off
+  get
 } from 'firebase/database';
 
 /**
@@ -154,39 +152,34 @@ export const loadEntriesSmart = async (uid) => {
 };
 
 /**
- * Subscribe to real-time updates for user's entries
+ * Load entries once (not real-time) - more bandwidth efficient
  * @param {string} uid - User's Firebase UID
- * @param {function} callback - Function to call when data changes (receives entries array)
- * @returns {function} Unsubscribe function to stop listening
+ * @returns {Promise} Promise that resolves with entries
  */
-export const subscribeToEntries = (uid, callback) => {
+export const loadEntriesOnce = async (uid) => {
   if (!db) {
-    console.warn('Database not initialized - cannot subscribe to real-time updates');
-    // Return empty unsubscribe function
-    return () => {};
+    console.warn('Database not initialized');
+    return { success: false, error: 'Database not initialized', entries: [] };
   }
 
-  const userRef = ref(db, `users/${uid}`);
+  try {
+    const userRef = ref(db, `users/${uid}`);
+    console.log('Loading entries once from:', `users/${uid}`);
+    const snapshot = await get(userRef);
 
-  console.log('Setting up real-time listener for:', `users/${uid}`);
-
-  // Set up real-time listener and return the unsubscribe function directly
-  onValue(userRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
-      console.log('Real-time update received:', data.entries?.length || 0, 'entries');
-      callback(data.entries || []);
+      console.log('Loaded', data.entries?.length || 0, 'entries from Firebase');
+      return {
+        success: true,
+        entries: data.entries || []
+      };
     } else {
-      console.log('Real-time update: No data exists yet');
-      callback([]);
+      console.log('No data exists yet');
+      return { success: true, entries: [] };
     }
-  }, (error) => {
-    console.error('Error in real-time listener:', error);
-  });
-
-  // Return cleanup function
-  return () => {
-    console.log('Unsubscribing from real-time updates');
-    off(userRef);
-  };
+  } catch (error) {
+    console.error('Error loading entries:', error);
+    return { success: false, error: error.message, entries: [] };
+  }
 };
