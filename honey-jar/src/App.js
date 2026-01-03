@@ -42,9 +42,14 @@ export default function HoneyJarApp() {
   // Load entries for current user
   useEffect(() => {
     if (currentUser) {
+      console.log('Loading entries for user:', currentUser.uid);
       loadEntriesSmart(currentUser.uid).then(result => {
+        console.log('Load result:', result);
         if (result.success) {
+          console.log('Setting entries:', result.entries);
           setEntries(result.entries);
+        } else {
+          console.error('Failed to load entries:', result.error);
         }
       });
     } else {
@@ -56,10 +61,15 @@ export default function HoneyJarApp() {
   // Save entries for current user
   useEffect(() => {
     if (currentUser && entries.length >= 0) {
-      saveEntriesSmart(currentUser.uid, entries, currentUser.displayName).catch(error => {
-        console.error('Error saving entries:', error);
-        alert('Failed to save your entries. Please check your internet connection.');
-      });
+      console.log('Saving entries for user:', currentUser.uid, 'Entries count:', entries.length);
+      saveEntriesSmart(currentUser.uid, entries, currentUser.displayName)
+        .then(result => {
+          console.log('Save result:', result);
+        })
+        .catch(error => {
+          console.error('Error saving entries:', error);
+          alert('Failed to save your entries. Please check your internet connection.');
+        });
     }
   }, [entries, currentUser]);
 

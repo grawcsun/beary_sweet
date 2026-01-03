@@ -13,6 +13,7 @@ import {
  */
 export const saveEntries = async (uid, entries, displayName = null) => {
   if (!db) {
+    console.warn('Database not initialized - db is null');
     return { success: false, error: 'Database not initialized' };
   }
 
@@ -28,10 +29,12 @@ export const saveEntries = async (uid, entries, displayName = null) => {
       data.displayName = displayName;
     }
 
+    console.log('Saving to Firebase path:', `users/${uid}`, 'Entries count:', entries.length);
     await set(userRef, data);
+    console.log('Firebase save successful');
     return { success: true };
   } catch (error) {
-    console.error('Error saving entries:', error);
+    console.error('Error saving entries to Firebase:', error);
     return { success: false, error: error.message };
   }
 };
@@ -42,26 +45,30 @@ export const saveEntries = async (uid, entries, displayName = null) => {
  */
 export const loadEntries = async (uid) => {
   if (!db) {
+    console.warn('Database not initialized - db is null');
     return { success: false, error: 'Database not initialized', entries: [] };
   }
 
   try {
     const userRef = ref(db, `users/${uid}`);
+    console.log('Loading from Firebase path:', `users/${uid}`);
     const snapshot = await get(userRef);
 
     if (snapshot.exists()) {
       const data = snapshot.val();
+      console.log('Firebase data found:', data.entries?.length || 0, 'entries');
       return {
         success: true,
         entries: data.entries || [],
         lastUpdated: data.lastUpdated
       };
     } else {
+      console.log('No Firebase data found for user - returning empty array');
       // User doesn't exist yet - return empty entries
       return { success: true, entries: [] };
     }
   } catch (error) {
-    console.error('Error loading entries:', error);
+    console.error('Error loading entries from Firebase:', error);
     return { success: false, error: error.message, entries: [] };
   }
 };
@@ -130,11 +137,15 @@ export const saveEntriesSmart = async (uid, entries, displayName = null) => {
 export const loadEntriesSmart = async (uid) => {
   if (isFirebaseConfigured() && db) {
     const result = await loadEntries(uid);
-    if (result.success && result.entries.length > 0) {
-      // Also save to localStorage for offline access
+    if (result.success) {
+      // Always save to localStorage for offline access, even if empty
       saveToLocalStorage(uid, result.entries);
+      return result;
+    } else {
+      // If Firebase fails, try localStorage as fallback
+      console.warn('Firebase load failed, falling back to localStorage');
+      return loadFromLocalStorage(uid);
     }
-    return result;
   } else {
     return loadFromLocalStorage(uid);
   }
