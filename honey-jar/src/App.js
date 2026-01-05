@@ -35,9 +35,23 @@ export default function HoneyJarApp() {
   // Listen to Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged((user) => {
-      setCurrentUser(user);
-      // Reset initial load flag when user changes
-      initialLoadComplete.current = false;
+      setCurrentUser(prevUser => {
+        // Only update if user actually changed (compare uid, not object reference)
+        if (!user && !prevUser) return prevUser;
+        if (!user || !prevUser) {
+          initialLoadComplete.current = false;
+          return user;
+        }
+        if (user.uid === prevUser.uid &&
+            user.email === prevUser.email &&
+            user.displayName === prevUser.displayName) {
+          // Same user, don't trigger re-render
+          return prevUser;
+        }
+        // Different user, reset load flag
+        initialLoadComplete.current = false;
+        return user;
+      });
     });
 
     // Cleanup subscription on unmount
