@@ -26,9 +26,15 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday, 
 
   // Animate jar filling/emptying
   useEffect(() => {
-    // Skip animation on initial mount
+    // Skip animation on initial mount OR if previousCount was 0 (data still loading)
     if (isInitialMount.current) {
       isInitialMount.current = false;
+      previousCount.current = count;
+      return;
+    }
+
+    // Skip animation if previousCount was 0 (initial data load from Firebase)
+    if (previousCount.current === 0 && count > 0) {
       previousCount.current = count;
       return;
     }
