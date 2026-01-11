@@ -24,35 +24,13 @@ export const generateDayRecap = async (dateStr, entries) => {
   const allHistoricalEntries = entries.filter(e => e.date !== dateStr);
   const recentHistory = allHistoricalEntries.slice(0, 20).map(e => e.content).join(' | ');
 
-  // Check if API key is configured
-  const apiKey = process.env.REACT_APP_ANTHROPIC_API_KEY;
-
-  console.log('API Key status:', apiKey ? `Found (length: ${apiKey.length})` : 'Not found');
-  console.log('API Key starts with:', apiKey ? apiKey.substring(0, 15) + '...' : 'N/A');
-
-  if (!apiKey) {
-    console.error('Anthropic API key not configured');
-    return {
-      success: false,
-      recap: `📖 DAY SUMMARY
-What a ${dayEntries[0]?.mood || 'thoughtful'} day! You collected ${dayEntries.length} honey drop${dayEntries.length !== 1 ? 's' : ''}.
-
-💡 YOUR ENTRIES
-${dayEntries.map((e, i) => `${i + 1}. (${e.mood}) ${e.content.substring(0, 150)}${e.content.length > 150 ? '...' : ''}`).join('\n\n')}
-
-🌟 AI INSIGHTS DISABLED. You may need an API Key! (https://console.anthropic.com/)
-
-💪 In the meantime, reflect on what these entries tell you about your day!`
-    };
-  }
-
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call our secure serverless API endpoint instead of calling Anthropic directly
+    // This keeps the API key secret on the server
+    const response = await fetch('/api/generate-recap', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20241022',
@@ -100,14 +78,10 @@ Keep your tone warm, encouraging, and specific to their unique situation. Be lik
       })
     });
 
-    console.log('API Response status:', response.status);
-
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Full API Error Response:', errorData);
-      console.error('Error type:', errorData.error?.type);
-      console.error('Error message:', errorData.error?.message);
-      throw new Error(`API request failed: ${response.status} - ${errorData.error?.message || response.statusText}`);
+      console.error('API Error Response:', errorData);
+      throw new Error(`API request failed: ${response.status} - ${errorData.error?.message || errorData.message || response.statusText}`);
     }
 
     const data = await response.json();
