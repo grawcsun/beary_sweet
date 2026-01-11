@@ -5,6 +5,7 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday, 
   const [isAnimating, setIsAnimating] = useState(false);
   const previousCount = useRef(count);
   const isInitialMount = useRef(true);
+  const hasLoadedInitialData = useRef(false);
 
   // Get jar state based on count (0, 1, 2, or 3 drops)
   const getJarState = (dropCount) => {
@@ -26,15 +27,16 @@ export default function AnimatedJar({ count, size = 'medium', onClick, isToday, 
 
   // Animate jar filling/emptying
   useEffect(() => {
-    // Skip animation on initial mount OR if previousCount was 0 (data still loading)
+    // Skip animation on initial mount
     if (isInitialMount.current) {
       isInitialMount.current = false;
       previousCount.current = count;
       return;
     }
 
-    // Skip animation if previousCount was 0 (initial data load from Firebase)
-    if (previousCount.current === 0 && count > 0) {
+    // Skip animation ONLY on first data load from Firebase (previousCount was 0 initially and hasn't loaded data yet)
+    if (!hasLoadedInitialData.current && previousCount.current === 0 && count > 0) {
+      hasLoadedInitialData.current = true;
       previousCount.current = count;
       return;
     }
