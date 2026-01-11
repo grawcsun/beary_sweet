@@ -11,6 +11,12 @@ export default async function handler(req, res) {
   // Get API key from environment variable (server-side only, not exposed to client)
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
+  console.log('Environment check:', {
+    hasKey: !!apiKey,
+    keyLength: apiKey?.length,
+    keyPrefix: apiKey?.substring(0, 15)
+  });
+
   if (!apiKey) {
     console.error('ANTHROPIC_API_KEY not configured in environment variables');
     return res.status(500).json({
