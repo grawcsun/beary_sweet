@@ -20,6 +20,7 @@ export default function HoneyJarApp() {
   const [view, setView] = useState('today');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [weekOffset, setWeekOffset] = useState(0); // Track which week to display (0=current, -1=last week, +1=next week)
   const [expandedDay, setExpandedDay] = useState(null);
   const [dayRecap, setDayRecap] = useState(null);
   const [isGeneratingRecap, setIsGeneratingRecap] = useState(false);
@@ -301,6 +302,8 @@ export default function HoneyJarApp() {
   const getCurrentWeekJars = () => {
     const week = [];
     const today = new Date();
+    // Apply week offset (0=current week, -1=last week, +1=next week)
+    today.setDate(today.getDate() + (weekOffset * 7));
     const dayOfWeek = today.getDay();
 
     for (let i = 0; i < 7; i++) {
@@ -456,7 +459,10 @@ export default function HoneyJarApp() {
 
         <div className="flex gap-2 mb-2 justify-center">
           <button
-            onClick={() => setView('today')}
+            onClick={() => {
+              setView('today');
+              setWeekOffset(0); // Reset to current week when clicking Today
+            }}
             className={`px-3 py-1 rounded-full font-semibold transition-all text-xs ${
               view === 'today' ? 'scale-105' : ''
             }`}
@@ -505,6 +511,8 @@ export default function HoneyJarApp() {
             handleWeekJarClick={handleWeekJarClick}
             handleDeleteEntry={handleDeleteEntry}
             setExpandedEntry={setExpandedEntry}
+            weekOffset={weekOffset}
+            setWeekOffset={setWeekOffset}
           />
         ) : (
           <CalendarView

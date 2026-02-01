@@ -3,18 +3,61 @@ import AnimatedJar from './AnimatedJar';
 import CozyBear from './CozyBear';
 import EntryCard from './EntryCard';
 
-export default function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, canAddMore, setShowForm, setSelectedDate, handleJarClick, handleWeekJarClick, handleDeleteEntry, setExpandedEntry }) {
+export default function TodayView({ entries, getCurrentWeekJars, getTodayEntries, todayCount, canAddMore, setShowForm, setSelectedDate, handleJarClick, handleWeekJarClick, handleDeleteEntry, setExpandedEntry, weekOffset, setWeekOffset }) {
   // Randomly choose which bear gives the daily message
   const [dailyBear] = useState(() => Math.random() > 0.5 ? 'Cherry' : 'Beary');
   const bearEmoji = dailyBear === 'Cherry' ? '🍒' : '🍓';
+
+  // Get week date range for display
+  const getWeekRange = () => {
+    const weekJars = getCurrentWeekJars();
+    if (weekJars.length === 0) return '';
+    const firstDay = weekJars[0].dateObj;
+    const lastDay = weekJars[6].dateObj;
+    const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+    return `${formatter.format(firstDay)} - ${formatter.format(lastDay)}`;
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="mb-4 mt-12">
         <div className="flex justify-between items-center mb-6">
-          <span style={{ color: '#FFE4B5', fontFamily: 'Georgia, serif', fontSize: '12px', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.3)' }}>
-            Current Week
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setWeekOffset(weekOffset - 1)}
+              className="px-2 py-1 rounded transition-all hover:scale-105"
+              style={{
+                background: 'rgba(255, 228, 181, 0.3)',
+                color: '#FFE4B5',
+                fontFamily: 'Georgia, serif',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              ←
+            </button>
+            <div className="text-center">
+              <div style={{ color: '#FFE4B5', fontFamily: 'Georgia, serif', fontSize: '12px', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.3)' }}>
+                {weekOffset === 0 ? 'Current Week' : weekOffset === -1 ? 'Last Week' : weekOffset === 1 ? 'Next Week' : `Week ${weekOffset > 0 ? '+' : ''}${weekOffset}`}
+              </div>
+              <div style={{ color: '#FFD7A5', fontFamily: 'Georgia, serif', fontSize: '10px', textShadow: '1px 1px 2px rgba(0,0,0,0.3)' }}>
+                {getWeekRange()}
+              </div>
+            </div>
+            <button
+              onClick={() => setWeekOffset(weekOffset + 1)}
+              className="px-2 py-1 rounded transition-all hover:scale-105"
+              style={{
+                background: 'rgba(255, 228, 181, 0.3)',
+                color: '#FFE4B5',
+                fontFamily: 'Georgia, serif',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              →
+            </button>
+          </div>
           <div className="text-right">
             <div style={{ color: '#FFE4B5', fontFamily: 'Georgia, serif', fontSize: '11px', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.3)' }}>
               {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
